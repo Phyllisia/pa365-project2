@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!--REFERENCES-->
+<!-- SimpleSlider referred from https://gist.github.com/johnwalley/e1d256b81e51da68f7feb632a53c3518 -->
+<!-------->
+	<title>World Happiness Index</title>
+	<script src="https://d3js.org/d3.v5.min.js"></script>
+	<script src="https://d3js.org/topojson.v2.min.js"></script>
+	<script src="https://unpkg.com/d3-simple-slider"></script>
+	<style>
+
+	div.title {
+		/*width: 700px;*/
+ 	 	/*margin: 0 0 0 5px;*/
+ 	 	/*display: inline-block;*/
+ 	 	display: block;
+  		margin-left: auto;
+  		margin-right: auto;
+  		/*border: 3px solid #73AD21;*/
+	}
+
+	div.slider {
+ 	 	display: block;
+  		margin-left: auto;
+  		margin-right: auto;
+  		/*border: 3px solid #73AD21;*/
+	}
+
+	div.map {
+ 	 	display: block;
+  		margin-left: auto;
+  		margin-right: auto;
+  		/*border: 3px solid #73AD21;*/
+	}
+
+	div.legend {
+ 	 	margin: 0 0 0 0px;
+ 	 	display: block;
+  		/*border: 3px solid #73AD21;*/
+	}
+
+	div.linechart {
+		display: block;
+  		margin-left: auto;
+  		margin-right: auto;
+  		/*border: 3px solid #73AD21;*/
+	}
+
+	.country {
+  		fill: lightgrey;
+  		stroke: none;
+	}
+
+	.outline {
+  		stroke: black;
+  		stroke-width: 1;
+  		fill: none;
+	}
+
+	 .gridlineVertical  {
+	  stroke: #969696;
+	  stroke-width: 0.2;
+	  stroke-dasharray: 0.8;
+	}
+
+	 .gridlineHorizontal  {
+	  stroke: #969696;
+	  stroke-width: 0.2;
+	  stroke-dasharray: 0.8;
+     }
+	 
+	  .title {
+	  font-size: 50px;
+	  font-family: 'Raleway', 'Helvetica', sans-serif;
+  	  font-weight: 100;
+	  font-style: normal;
+	  fill: #636363;
+
+	}
+
+	  .heading1 {
+	  font-size: 24px;
+	  font-family: 'Raleway', 'Helvetica', sans-serif;
+  	  font-weight: 100;
+	  font-style: normal;
+	  fill: #636363;
+
+	}
+
+	  .heading2 {
+	  font-size: 18px;
+	  font-family: 'Raleway', 'Helvetica', sans-serif;
+  	  font-weight: 100;
+	  font-style: normal;
+	  fill: #000000;
+
+	}
+
+ 	  .text {
+	  font-size: 12px;
+	  font-family: 'Raleway', 'Helvetica', sans-serif;
+  	  font-weight: 100;
+	  font-style: normal;
+	  line-height: 1.3;
+	  fill: #636363;
+
+	}
+
+	.legend{
+	  font-size: 10px;
+	  font-family: 'Raleway', 'Helvetica', sans-serif;
+  	  font-weight: 200;
+	  font-style: normal;
+	  color: #636363;
+
+	}
+	
+
+	</style>
+</head>
+<body>
+<p id="Title">
+	<div class="title" align="center">
+	<text class="title"> World Happiness Index </text>
+	<svg id="title" width="1200" height="100">	
+		<switch>
+			<foreignObject y="10" class="text" width="1200" height="100">
+			<p xmlns="http://www.w3.org/1999/xhtml"> 
+The following world map depicts the happiness score across countries from 2005 to 2018, based on self-reported life satisfaction survey using Cantril Ladder. Cantril Ladder rating ranges from 0 (worst possible life) to 10 (best possible life). The underlying source is the Gallup World Poll, a set of nationally representative surveys undertaken in more than 160 countries in over 140 languages. <br><br>
+Across the years, North American and European countries tend to have high score above 6, while African countries have scores lower than median 5.<br>
+Click on country to see year by year happiness score trend.<br> <br>
+</p>
+			</foreignObject>
+		</switch>
+	</svg>
+	</div>
+</p>
+<p>
+	<div class="slider" align="center">
+		<svg id="slider" width ="500" height = "40"></svg>
+	</div>
+	<div class="slider" align="center">
+		<svg id="slider-value" width ="500" height = "20"></svg>
+	</div>
+	<div class="map" align="center"> 
+		<svg id="map" width="950" height="600"></svg>
+	</div>
+	<div class="legend" align="center">
+		<svg id="legend" width ="400" height = "50"></svg>
+	</div><br><br>
+	<div class="text" align="center">
+		<text>Dataset taken from <a href="https://ourworldindata.org/happiness-and-life-satisfaction">ourworldindata.org</a></text>
+	</div>
+		<div class="linechart" align="center"> 
+		<svg id="linechart" width="400" height="200">
+		</svg>
+	</div>
+</p>
+<script type="text/javascript">
+
+	//setup canvas to draw
+	const margins = {"top": 5, "right": 5, "bottom": 5, "left": 5};
+	const marginsLineChart = {"top": 30, "right": 25, "bottom": 5, "left": 10};
+
+	//svg map
+	const svgMap = d3.select("#map");
+	const svgMap_width = svgMap.attr("width");
+	const svgMap_height = svgMap.attr("height");	 
+	const map_width = svgMap_width  - margins.left - margins.right;
+	const map_height = svgMap_height - margins.top - margins.bottom;
+
+	const map = svgMap.append("g");
+
+    //setup slider year
+    const svgSlider = d3.select("#slider");
+	const svgSlider_width = svgSlider.attr("width");
+	const svgSlider_height = svgSlider.attr("height");	 
+	const slider_width = svgSlider_width  - margins.left - margins.right;
+	const slider_height = svgSlider_height - margins.top - margins.bottom;
+
+    const slider = svgSlider.append("g")
+    							.attr("transform","translate("+(margins.left+50)+","+(margins.top+29)+")");
+
+
+	//setup line chart
+	const svgLine = d3.select("#linechart");
+	const svgLine_width = svgLine.attr("width");
+	const svgLine_height = svgLine.attr("height");	 
+	const line_width = svgLine_width  - margins.left - margins.right;
+	const line_height = svgLine_height - margins.top - margins.bottom;
+
+	const bgline_width = line_width + 50;
+	const bgline_height = line_height + 60;
+
+	const line = svgLine.append("g");
+
+	//setup tooltip
+    const tooltipWidth = 140;
+	const tooltipHeight = 40;
+	    
+	const tooltip = svgMap.append("g")
+					     .attr("class","tooltip")
+	                     .attr("visibility","hidden");
+
+	//setup components for line chart
+	const bgLine = svgMap.append("g")
+						 .attr("class","background-line-chart");
+	                     //.attr("visibility","hidden");
+
+	const xAxis = svgMap.append("g")
+					 .attr("class","gridlineHorizontal")
+                     .attr("visibility","hidden");
+
+    const yAxis = svgMap.append("g")
+    				 .attr("class","gridlineVertical")
+                     .attr("visibility","hidden");   
+
+   	const genLine = svgMap.append("g")
+   				     .attr("class","line-chart")
+                     .attr("visibility","hidden");   
+
+    //setup number formatter
+    const formatter = new Intl.NumberFormat('en-US', {
+											  maximumSignificantDigits: 3
+											});
+
+
+	//begin async data request
+    const requestData = async function() {
+
+    	//-------------------------------------------------------//
+    	//------ CODE BLOCK FOR WORLD MAP LIFE SATISFACTION -----//
+    	//-------------------------------------------------------//
+
+    	//load data
+		const world = await d3.json("world_110m.json");
+		const countryCode = await d3.csv("country_code.csv");
+		const happinessLadder = await d3.csv("happiness.csv");
+	
+		
+		//fix data
+		happinessLadder.forEach( (d, i) => {
+
+			d.Ladder = Number(d['Ladder']); //convert string to Number
+			d['Year'] = Number(d['Year']); //convert string to Number
+		});
+
+		countryCode.forEach( (d, i) => {
+
+			d.alpha3 = (d['alpha-3']); 
+
+		});
+
+		//create array to populate country happiness index
+        var countryHappiness = [];
+    
+        //populate countryHappiness with country_code, year & happiness ladder mapping
+		happinessLadder.forEach( (row,index) => {
+		 	
+			countryHappiness.push({
+					index: index,
+	    			country_code: lookupCountryNumCode(row.Code, countryCode), 
+	    			year: row.Year,
+	    			ladder: row.Ladder,
+	    		});
+
+		 });
+
+		//set up mesh outline, projection and path for drawing
+   		let countries = topojson.feature(world, world.objects.countries);
+   		let countryMesh = topojson.mesh(world, world.objects.countries);
+
+   		var projection = d3.geoEqualEarth().fitSize([map_width, map_height], countries).rotate([-20,0,0]);
+    	var pathGen = d3.geoPath().projection(projection);
+
+   		//draw country map
+    	map.selectAll("path").data(countries.features)
+	       .join("path")
+	       .attr("note", d => d.id)
+	       .attr("class", "country")
+	       .attr("d", pathGen);
+
+       	//draw country outline
+		map.append("path").datum(countryMesh)
+		       .attr("class","outline")
+		       .attr("d", pathGen);
+
+		//set color scale using Quantile
+        const colorScale = d3.scaleQuantile()
+                         .domain([0,10])
+                         .range(d3.schemeRdYlGn[10]);
+  
+ 		
+ 		//set initial year as default
+ 		var yearInitial = 2005;
+ 		var yearLastPoint = 2018;
+ 		var yearDefault = 2008;
+
+ 		//--- SETUP ARRAY COUNTRY AND LADDER VALUE FOR COLORING ---// 
+  	
+  		//call function to generate country color array
+  		setColorByYear(yearDefault); //default value 2008
+		
+		//create simple year slider
+		//code reference https://gist.github.com/johnwalley/e1d256b81e51da68f7feb632a53c3518	
+		var yearRange = d3.range(0,yearLastPoint-yearInitial+1).map(function(d){
+    		return new Date(yearInitial + d,10,3);
+    	});
+
+    	var yearSlider = d3.sliderTop()
+    					  .min(d3.min(yearRange))
+    					  .max(d3.max(yearRange))
+    					  .step(1000 * 60 * 60 *24 *365)
+    					  .width(400)
+    					  .tickFormat(d3.timeFormat('%Y'))
+    					  .tickValues(yearRange)
+    					  .default(new Date(yearDefault,10,3))
+    					  .on("onchange", val => {
+      						d3.select("#slider-value").text(d3.timeFormat('%Y')(val) );
+      						setColorByYear(val.getFullYear());
+      					});
+
+      	slider.call(yearSlider);
+
+      	d3.select("#slider-value").text(d3.timeFormat('%Y')( yearSlider.value() ) );
+
+     
+      	//set function to set country color by selected year
+    	function setColorByYear(year) {
+
+    		var countryColorArray = {};
+			var year = parseInt(year);
+			var found = 0;
+
+	  		countryHappiness.forEach( (row,index) => {
+
+					
+	  			if( row.year - year === 0 ) {
+					countryColorArray[row.country_code] = row.ladder;
+					found++;	
+	  			}
+
+			 });
+
+	  		//recolor map
+     		map.selectAll(".country")
+     			.attr("laddervalue",d => countryColorArray[d.id])
+				.style("fill", d => colorScale( countryColorArray[d.id] ) );
+
+
+    	} //end setColorByYear
+
+    	
+    	//-------------------------------------------------------//
+    	//------ CODE BLOCK FOR LINE CHART  ---------------------//
+    	//-------------------------------------------------------//
+
+    	//load data
+		const happinessByYear = await d3.json("happiness_by_year_format.json");
+
+	
+		//set minmax value for X, Y scale
+		let happinessExtent = [0,10]; //y scale
+
+		// set min max value for X scale: date
+		// but before that, parse year value from dataset first
+		var timeParse = d3.timeParse("%Y");
+
+			happinessByYear.forEach( d => {
+					d['ParsedYear'] = timeParse(d['Year']);
+				});
+
+		let yearExtent =  d3.extent(happinessByYear, d => d['ParsedYear']);
+
+
+		//create X Scale
+		let xScale = d3.scaleTime().domain(yearExtent).range([0, line_width]);
+		let axisBottom = d3.axisBottom(xScale)
+			          		.ticks(d3.timeYear.every(1))
+			          		.tickSize(5)
+			          		.tickFormat( d3.timeFormat("%Y"));
+
+		//create Y Scale
+		let yScale = d3.scaleLinear().domain([0,10]).range([line_height,0]);
+		let axisLeft = d3.axisLeft(yScale)
+				         .tickSize(-line_width-10);
+
+	
+		//--- CALL FUNCTION TO HANDLE MOUSE OVER, MOUSE OUT AND MOUSE CLICK ---//
+
+		d3.selectAll(".country").on("mouseover", mouseOver );
+        d3.selectAll(".country").on("mouseout",  mouseLeave);
+    	d3.selectAll(".country").on("click",  mouseClick);
+
+    	 //== function to handle mouseEnter ==//
+	    function mouseOver() {
+
+			let countrySelect = d3.select(this);
+
+			countrySelect.style("stroke","#ffffff")
+				 		 .style("stroke-width", 5);
+		    
+		    tooltip.append("rect")
+		           .attr("fill", "#ffffff")
+		           .attr("stroke", "black")
+		           .attr("stroke-width", 1)
+		           .attr("opacity", 1.0)
+		           .attr("width",tooltipWidth)
+		           .attr("height",tooltipHeight);
+		                  
+		    
+		    let countryNameTip = tooltip.append("text")
+					                     .attr("text-anchor","middle")
+					                     .attr("alignment-baseline","hanging")
+					                     .attr("class","legend")
+					                     .attr("x", tooltipWidth / 2.0)
+					                     .attr("y", (tooltipHeight/3) - 3 );
+
+			let countryValueTip = tooltip.append("text")
+					                     .attr("text-anchor","middle")
+					                     .attr("alignment-baseline","hanging")
+					                     .attr("class","legend")
+					                     .attr("x", tooltipWidth / 2.0)
+					                     .attr("y", (tooltipHeight/2.5) + 10 ) ;		                     
+		    
+		    countryNameTip.text( truncateString( lookupCountryName(countrySelect.datum().id, countryCode) ) );
+		    countryValueTip.text( formatter.format( countrySelect.attr("laddervalue") ) );
+		   
+		 
+		    //relocating tooltip position, credit code taken from lecture notes 2020.03.04 with personal adjustment on yPos calculation
+		    let bounds = pathGen.bounds(countrySelect.datum());
+		    let xPos = (bounds[0][0]+bounds[1][0])/2.0 - tooltipWidth/2.0;
+		    let yPos = bounds[1][1] - tooltipHeight/4.0;
+
+		    tooltip.attr("transform","translate("+xPos+","+yPos+")")
+
+		    tooltip.attr("visibility","visible");
+
+		    
+		}// end mouseEnter
+
+
+		//== function to handle mouseLeave ==//
+		function mouseLeave() {
+
+
+			let countrySelect = d3.select(this);
+
+			//clear country line
+			countrySelect.style("stroke","none");
+
+
+			//clear tooltip text
+			tooltip.text("");
+			tooltip.attr("visibility","hidden");
+
+			//hide line chart
+			bgLine.text("");
+			bgLine.attr("visibility","hidden");
+
+			xAxis.attr("visibility","hidden");
+			
+			yAxis.attr("visibility","hidden");
+			genLine.attr("visibility","hidden");
+
+			//reset line chart
+			genLine.selectAll(".line").attr("stroke","none");
+
+
+
+		} //end mouseLeave
+
+
+		function mouseClick() {
+
+		
+			let countrySelect = d3.select(this);
+			let countryAlphaCode = lookupCountryAlpha(countrySelect.datum().id, countryCode)
+
+			//clear tooltip text
+			tooltip.text("");
+			tooltip.attr("visibility","hidden");
+
+			//call background for line chart, set the properties including line chart title
+			bgLine.append("rect")
+				  .attr("fill", "white")
+				  .attr("stroke","grey")
+				  .attr("opacity", 0.9)
+				  .attr("width",bgline_width)
+				  .attr("height",bgline_height);
+		
+
+			let bgTitle = bgLine.append("text")
+								.attr("text-anchor","left")
+								.attr("transform","translate("+(margins.left+5)+","+(margins.top+10)+")")
+				  				.attr("alignment-baseline","hanging")
+				  				.attr("class","heading2");
+
+			bgTitle.text(lookupCountryName(countrySelect.datum().id, countryCode));
+
+			//generate line for country life satisfaction rate and append path
+			var countryLine = d3.line()
+							.defined(d => d[countryAlphaCode] != "" ) //only draw if there is a life satisfaction value
+							.x(d => xScale(d['ParsedYear'])) 
+							.y(d => yScale(d[countryAlphaCode]))
+							.curve(d3.curveLinear); 
+
+
+			//start make line using path
+			genLine.append("path")
+					.datum(happinessByYear)
+		  			.attr("fill","none")
+		  			.attr("stroke", "black")
+		  			.attr("stroke-width",2)
+		  			.attr("class","line")
+		  	        .attr("d", countryLine);
+
+		  	//add circle points
+		  	genLine.selectAll("circle")
+		  	       .data(happinessByYear)
+		  	       .join("circle")
+		  	       .attr("r",3)
+		  	       .attr("fill", function(d) {  //only add circles if it has happiness index value
+		  	       		if ( d[countryAlphaCode] > 0 ) { 
+		  	       			return "black"; 
+		  	       		} else {		  
+		  	       				return "none";
+		  	       			} 
+		  	       		} )
+		  	       .attr("cx", d => xScale( d['ParsedYear']))
+		  	       .attr("cy", d => yScale( d[countryAlphaCode]) );
+
+		  	//relocate line chart
+		  	let bounds = pathGen.bounds(countrySelect.datum());
+		 
+		    let xPos = bounds[0][0] - line_width/2.0;
+		    let yPos = bounds[1][1];
+
+		    let mouse = d3.mouse(this);
+
+
+		    //reposition line chart that is out of bounds
+		    if ( (xPos + bgline_width) > svgMap_width ) {
+		    	xPos = mouse[0] - bgline_width;
+		    }
+
+		    if ( (yPos + bgline_height) > svgMap_height ) {
+		    	yPos = mouse[1] - bgline_height;
+		    }
+
+		    if ( xPos < 0 ) {
+		    	xPos = mouse[0] + 20;
+		    } 
+
+		    if (yPos > svgMap_height) {
+		    	yPos = mouse[1] - bgline_height;
+		    }
+
+		    if (yPos < 0) {
+		    	yPos = mouse[1] - bgline_height;
+		    }
+
+      
+			
+			//transform position of line chart and its component
+		    bgLine.attr("transform","translate("+(xPos-12)+","+(yPos-10)+")");
+		    xAxis.attr("transform","translate("+(xPos+margins.left+15)+","+(yPos+line_height+30)+")");
+			yAxis.attr("transform","translate("+(xPos+margins.left+10)+","+(yPos+30)+")");	
+			genLine.attr("transform","translate("+(xPos+margins.left+15)+","+(yPos+margins.top+30)+")");	
+
+			//call xAxis, yAxis, line generator and make it visible
+			xAxis.call(axisBottom)
+				 .attr("visibility","visible");		
+			
+			yAxis.call(axisLeft)
+				 .attr("visibility","visible");
+			
+			genLine.attr("visibility","visible");
+
+			bgLine.attr("visibility","visible");    //TO CHANGE 
+
+		}
+
+		drawLegend(d3.select("#legend"), colorScale);
+
+    }//end requestData()
+
+
+    
+	// function vlookup country code based on country alpha-3
+    function lookupCountryNumCode (key, dict) {
+    	
+    	var stop = false;
+
+    	for ( var i=0; i < dict.length; i++) {
+    		if (dict[i]['alpha3'] === key) {
+    			stop = true;
+    			break;
+    		}
+    	}
+
+    	if (stop === true ) 
+    		return dict[i]['country-code'];
+    	else 
+    		return "n/a";
+
+    } // end lookupCountryNumCode()
+
+
+    // function vlookup country name based on country code
+    function lookupCountryName (key, dict) {
+    	
+    	var stop = false;
+
+    	for ( var i=0; i < dict.length; i++) {
+    		if (dict[i]['country-code'] === key) {
+    			stop = true;
+    			break;
+    		}
+    	}
+
+    	if (stop === true ) 
+    		return dict[i]['name'];
+    	else 
+    		return "n/a";
+
+    } // end lookupCountryName()
+
+     // function vlookup country name based on country code
+    function lookupCountryAlpha (key, dict) {
+    	
+    	var stop = false;
+
+    	for ( var i=0; i < dict.length; i++) {
+    		if (dict[i]['country-code'] === key) {
+    			stop = true;
+    			break;
+    		}
+    	}
+
+    	if (stop === true ) 
+    		return dict[i]['alpha-3'];
+    	else 
+    		return "n/a";
+
+    } // end lookupCountryName()
+
+    //truncate long label string
+	function truncateString(string) {
+		  
+		let maxLen = 25;
+		let ending = "...";
+	    
+	    if (string.length > maxLen) {
+	      return string.substring(0, maxLen - ending.length) + ending;
+	    } 
+	    else return string;
+
+	    
+	} //end truncateString
+
+    requestData();
+	
+</script>
+<script>
+    
+    // drawLegend function credit from class notes 3/4/2020 by Prof. Rz
+    function drawLegend(legend, legendColorScale) {
+      
+      const legendWidth = legend.attr("width");
+      const legendHeight = legend.attr("height");
+      const legendMinMax = d3.extent(legendColorScale.domain()); 
+      const barHeight = 20;
+      const stepSize = 4; 
+
+      const pixelScale = d3.scaleLinear().domain([0,legendWidth-40]).range([legendMinMax[0],legendMinMax[1]]); 
+      const barScale = d3.scaleLinear().domain([legendMinMax[0],legendMinMax[1]]).range([0,legendWidth-40]);
+      const barAxis = d3.axisBottom(barScale);
+    
+      legend.append("g")
+	        .attr("class", "legend")
+	        .attr("transform","translate("+(20)+","+(barHeight+5)+")")
+	        .call(barAxis);
+      
+      let bar = legend.append("g").attr("transform","translate("+(20)+","+(0)+")")
+
+      for (let i=0; i<legendWidth-40; i=i+stepSize) {
+        bar.append("rect")
+          .attr("x", i)
+          .attr("y", 0)
+          .attr("width", stepSize)
+          .attr("height",barHeight)
+          .style("fill", legendColorScale( pixelScale(i) )); // pixels => countData => color
+      }
+    
+      
+    }
+  </script>
+
+</body>
+</html>
